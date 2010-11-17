@@ -1,0 +1,10 @@
+# generated c/c++/obj-c artifacts
+*.[oa]
+*~
+.DS_Store
+# build location
+build
+# generated JNI header files
+src/native/info_growl_*.h
+# generated JNI library
+*.jnilib
