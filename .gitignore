@@ -2,9 +2,10 @@
 *.[oa]
 *~
 .DS_Store
-# build location
+# build locations
 build
+bin
 # generated JNI header files
-src/native/info_growl_*.h
+src/main/native/info_growl_*.h
 # generated JNI library
 *.jnilib

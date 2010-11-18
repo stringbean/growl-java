@@ -1,70 +1,98 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<project name="UpdateTesting" default="build">
-
+<project name="Growl Java" default="build">
 	<property name="build.dir" value="build" />
-	<property name="classes.dir" value="${build.dir}/classes" />
-	<property name="target.dir" value="${build.dir}/dist" />
-	<property name="javadoc.dir" value="${build.dir}/apidocs" />
+	<property name="dist.dir" value="${build.dir}/dist" />
+	
+	<!-- main code -->
+	<property name="main.java.src" value="src/main/java" />
+	<property name="main.java.build" value="${build.dir}/classes" />
+	<property name="main.native.src" value="src/main/native" />
+	
+	<!-- demo code -->
+	<property name="demo.java.src" value="src/demo/java" />
+	<property name="demo.resources.src" value="src/demo/resources" />
+	<property name="demo.java.build" value="${build.dir}/demo-classes" />
 
-	<property name="src.java.dir" value="src/java" />
-	<property name="src.native.dir" value="src/native" />
-	<property name="src.resources.dir" value="src/resources" />
-
-	<target name="build-java">
-		<mkdir dir="${classes.dir}" />
-		<javac debug="true" destdir="${classes.dir}" srcdir="${src.java.dir}" />
+	<target name="build" description="Builds the Growl Java library and demo app"
+			depends="buildLibrary,buildNative,buildDemo" />
+	
+	<target name="run" description="Builds and runs the Growl Java demo application"
+			depends="build">
+		<java jar="${dist.dir}/GrowlDemo.jar" fork="yes" dir="${dist.dir}" />
+	</target>
+	
+	<target name="buildLibrary" description="Builds and packages the Growl Java library"
+			depends="_compileJava">
+		<mkdir dir="${dist.dir}" />
+		<jar destfile="${dist.dir}/Growl.jar" basedir="${main.java.build}" />
 	</target>
 
-	<target name="build-headers" depends="build-java">
-		<javah destdir="${src.native.dir}" classpath="${classes.dir}">
-			<class name="info.growl.GrowlNative" />
-		</javah>
-	</target>
+	<target name="buildNative" description="Builds the native library needed for Growl"
+			depends="_generateHeaders">
+		<exec executable="make" dir="${main.native.src}" failonerror="yes" />
 
-	<target name="build-native">
-		<exec executable="make" dir="${src.native.dir}" failonerror="yes" />
-
-		<copy todir="${target.dir}">
-			<fileset dir="${src.native.dir}" includes="**/*.jnilib" />
+		<mkdir dir="${dist.dir}"/>
+		<copy todir="${dist.dir}">
+			<fileset dir="${main.native.src}" includes="**/*.jnilib" />
 		</copy>
 	</target>
 
-	<target name="copy-resources">
-		<copy todir="${classes.dir}">
-			<fileset dir="${src.resources.dir}" includes="**/*" />
-		</copy>
-	</target>
-
-	<target name="build-jar" depends="build-java, copy-resources">
-		<mkdir dir="${target.dir}" />
-		<jar destfile="${target.dir}/Growl.jar" basedir="${classes.dir}">
+	<target name="buildDemo" description="Builds the Growl Java demo application"
+			depends="_compileDemo,_copyDemoResources,buildLibrary,buildNative">
+		<mkdir dir="${dist.dir}" />
+		<jar destfile="${dist.dir}/GrowlDemo.jar" basedir="${demo.java.build}">
+			<manifest>
+				<attribute name="Main-Class" value="info.growl.GrowlDemo" />
+				<attribute name="Class-Path" value="Growl.jar" />
+			</manifest>
 		</jar>
 	</target>
 
-	<target name="build" depends="build-jar,build-headers,build-native" />
+    <target name="clean" description="Removes previous build artifacts">
+        <delete dir="${build.dir}" />
 
-	<target name="javadoc" depends="build-jar">
-		<mkdir dir="${javadoc.dir}" />
-
-		<javadoc sourcepath="${src.java.dir}" destdir="${javadoc.dir}"
-			author="yes" header="Growl Java APIs" />
-	</target>
-
-	<target name="clean">
-		<delete dir="${build.dir}" />
+    	<!-- remove generated JNI headers -->
 		<delete>
-			<fileset dir="${src.native.dir}" includes="**/info_growl_*.h" />
+			<fileset dir="${main.native.src}" includes="**/info_growl_*.h" />
 		</delete>
 
-		<exec executable="make" dir="${src.native.dir}" failonerror="yes">
+		<exec executable="make" dir="${main.native.src}" failonerror="yes">
 			<arg line="clean" />
 		</exec>
+    </target>
+	
+	<!-- ======================== PRIVATE TARGETS ========================= -->
+    <target name="_compileJava">
+		<mkdir dir="${main.java.build}" />
+
+    	<javac debug="true" source="1.5" target="1.5" includeantruntime="no"
+    			srcdir="${main.java.src}" destdir="${main.java.build}" />
+    </target>
+	
+	<target name="_generateHeaders" depends="_compileJava">
+		<javah destdir="${main.native.src}" classpath="${main.java.build}">
+			<class name="info.growl.GrowlNative" />
+		</javah>
 	</target>
 	
-	<target name="run" depends="build">
-		<java classname="info.growl.test.TestGrowl" fork="true" dir="${target.dir}" classpath="${target.dir}/Growl.jar">
-		<jvmarg line="-Djava.library.path=."/>
-		</java>
+	<target name="_compileDemo" depends="_compileJava">
+		<mkdir dir="${demo.java.build}" />
+		
+		<javac debug="true" source="1.5" target="1.5" includeantruntime="no"
+				srcdir="${demo.java.src}" destdir="${demo.java.build}">
+			<classpath>
+				<pathelement path="${main.java.build}" />
+			</classpath>
+		</javac>
 	</target>
+
+	<target name="_copyDemoResources">
+		<mkdir dir="${demo.java.build}" />
+
+		<copy todir="${demo.java.build}">
+			<fileset dir="${demo.resources.src}" includes="**/*" />
+		</copy>
+	</target>
+
 </project>
